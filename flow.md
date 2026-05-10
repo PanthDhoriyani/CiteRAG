@@ -1,6 +1,94 @@
 # Project Flow & Directory Structure (Current Implementation)
 
-This document provides an overview of the repository layout **as of the work completed so far** (Phase 1 – Document Ingestion Pipeline + Phase 2 – Hybrid Retrieval & Reranking). It explains the purpose of each existing directory and file, and will be updated as new features are added.
+ This project is a Citation-Aware Multi-Source RAG (Retrieval-Augmented 
+  Generation) Platform. It is designed to ingest documents, index them across
+  multiple database types for high-performance retrieval, and allow users to
+  query that data with a hybrid search approach.
+
+  📁 Project Structure & File Roles
+
+  1. backend/ (The Core Engine)
+
+  - main.py: The entry point. It initializes the FastAPI application,
+  configures CORS, and mounts the routers and frontend static files.
+  - routers/: Defines the API endpoints.
+    - upload.py: Handles file uploads (PDF, DOCX, TXT), saves them to the
+  uploads/ folder, and triggers the ingestion pipeline.
+    - query.py: Handles user questions. It orchestrates retrieval (BM25,
+  Vector, or Hybrid) and re-ranking of results.
+  - services/: Contains the business logic for the RAG pipeline.
+    - processor.py: The orchestrator that connects extraction $\rightarrow$
+  chunking $\rightarrow$ embedding $\rightarrow$ storage.
+    - extractor.py: Extracts raw text from various file formats.
+    - chunker.py: Splits long text into smaller, manageable chunks with
+  overlapping windows to preserve context.
+    - embedder.py: Converts text chunks into numerical vectors (embeddings)
+  using a machine learning model.
+    - retriever.py: Logic to fetch relevant chunks from Elasticsearch (keyword)
+   and Qdrant (vector).
+    - reranker.py: Refines the initial results to ensure the most relevant
+  chunks are at the top.
+  - db/: Database clients.
+    - qdrant_client.py: Interfaces with Qdrant (Vector Database) for semantic
+  search.
+    - mongo_client.py: Interfaces with MongoDB (Document Store) for storing
+  metadata and raw chunks.
+    - elastic_client.py: Interfaces with Elasticsearch for BM25 (keyword-based)
+   search.
+  - models/: Defines the data structures (schemas) for API requests and
+  responses using Pydantic.
+  - config.py: Centralized configuration settings.
+
+  2. frontend/
+
+  - Contains the user interface (index.html) used to upload documents and ask
+  questions.
+
+  3. Other Root Files
+
+  - uploads/: Temporary storage for uploaded files.
+  - docker-compose.yml & Dockerfile: For containerizing the application and its
+   dependencies (DBs).
+  - requirements.txt: Python dependencies.
+  - planning/: Design documents and progress tracking.
+
+  ---
+  ⚙️  System Flow (How it works)
+
+  Flow A: Document Ingestion (When a user uploads a file)
+
+  1. User Action: Uploads a file via the Frontend.
+  2. Route: POST /api/upload $\rightarrow$ upload.py.
+  3. Storage: The file is saved to the /uploads folder with a unique
+  document_id.
+  4. Processing: processor.py takes over:
+    - Extraction: extractor.py reads the file and converts it to plain text.
+    - Chunking: chunker.py splits the text into small chunks (e.g., 512
+  tokens).
+    - Embedding: embedder.py turns these text chunks into vectors.
+  5. Multi-DB Indexing: The system stores the data in three places
+  simultaneously:
+    - Qdrant: Stores the vectors for "meaning-based" search.
+    - Elasticsearch: Indexes the text for "keyword-based" search.
+    - MongoDB: Stores the full text and metadata for final retrieval.
+  6. Response: User receives a confirmation that the document was processed.
+
+  Flow B: Querying (When a user asks a question)
+
+  1. User Action: Types a question in the Frontend.
+  2. Route: POST /api/query $\rightarrow$ query.py.
+  3. Retrieval: Depending on the mode selected (BM25, Vector, or Hybrid):
+    - Vector Search: Asks Qdrant for chunks that are semantically similar to
+  the question.
+    - BM25 Search: Asks Elasticsearch for chunks that contain the exact words
+  of the question.
+    - Hybrid: Combines both results.
+  4. Re-ranking: reranker.py takes the top results and uses a more powerful
+  model to re-score them, ensuring the most accurate answer is first.
+  5. Result: The system returns the top-ranked chunks (and their
+  metadata/citations) back to the user.
+
+
 
 ---
 
