@@ -5,7 +5,7 @@ Combines extraction, chunking, embedding, and storage.
 import uuid
 import logging
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from .extractor import extract_text
 from .chunker import chunk_text_with_metadata
@@ -20,13 +20,13 @@ logger = logging.getLogger(__name__)
 class DocumentProcessor:
     def __init__(
         self,
-        qdrant_host: str = "localhost",
-        qdrant_port: int = 6333,
-        mongo_host: str = "localhost",
-        mongo_port: int = 27017,
-        mongo_db: str = "rag_platform",
-        es_host: str = "localhost",
-        es_port: int = 9200,
+        qdrant_host: Optional[str] = None,
+        qdrant_port: Optional[int] = None,
+        mongo_host: Optional[str] = None,
+        mongo_port: Optional[int] = None,
+        mongo_db: Optional[str] = None,
+        es_host: Optional[str] = None,
+        es_port: Optional[int] = None,
         collection_name: str = "vectors",
         mongo_collection: str = "chunks",
         es_index: str = "chunks",

@@ -1,0 +1,225 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+.egg-info/
+.installed.cfg
+*egg.log
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+media
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder.target
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+#   For a library or script, you may not want to ignore these files if you want to embed
+#   version information in wheel or installer files.
+#   For example, when creating a package for distribution, you may want to keep the version
+#   of the language to indicate which versions it's compatible with. However, if you are
+#   building a library that will be used in multiple versions of Python, you might want
+#   to ignore these files.
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+.dmypy.yaml
+
+# Typeshed types
+#   https://github.com/python/typeshed
+typeshed/
+
+# PyTorch
+#   https://github.com/pytorch/pytorch
+*.pth
+
+# TensorFlow
+#   https://github.com/tensorflow/tensorflow
+*saved_model/
+
+# TensorBoard
+#   https://github.com/tensorflow/tensorboard
+*tfevents.*
+
+# Keras
+#   https://github.com/fchollet/keras
+keras_snapshot.h5
+
+# Science data journals
+*.nb
+*.nb.h5
+*.nb.gz
+*.wb
+
+# R
+#   https://github.com/kirenz/r-data-journals
+*.RData
+*.Rhistory
+*.RappHistory
+*.Ruserhistory
+
+# Julia
+#   https://github.com/JuliaLang/julia
+*.ji
+
+# Data / temporary files
+# We don't want to commit uploaded files or data directories
+uploads/
+data/
+*.sqlite3
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.suo
+*.pwd
+*.user
+*.userosscache
+*.sln.docstates
+
+# Docker
+#   We don't want to commit Docker volumes or containers
+#   But we may want to keep docker-compose.yml and Dockerfile
+#   So ignore any docker-compose.override.yml
+docker-compose.override.yml
+
+# Environment variables (keep .env.example but not .env)
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+
+# (AG) HuggingFace / sentence-transformers model cache
+#   Downloaded models can be very large (1GB+), never commit them
+.cache/
+huggingface/
+*.bin
+*.safetensors
+!requirements.txt
+
+# (AG) Gemini / Antigravity tool files
+.gemini/
+
+# (AG) Node modules (for future React frontend - Phase 4)
+node_modules/
+.next/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# (AG) Ollama model files (for future LLM integration - Phase 3)
+*.gguf
+*.ggml
+
+# End of file

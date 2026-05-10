@@ -4,15 +4,28 @@ Elasticsearch client wrapper for BM25 keyword search.
 from elasticsearch import Elasticsearch
 import logging
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+
+from ..config import config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class ElasticSearchDB:
-    def __init__(self, host: str = "localhost", port: int = 9200):
-        self.es = Elasticsearch([f"http://{host}:{port}"])
-        logger.info(f"Connected to Elasticsearch at {host}:{port}")
+    def __init__(self, host: Optional[str] = None, port: Optional[int] = None):
+        # Use provided values or fall back to config
+        self.host = host if host is not None else config.ES_HOST
+        self.port = port if port is not None else config.ES_PORT
+
+        try:
+            self.es = Elasticsearch([f"http://{self.host}:{self.port}"])
+            # Test connection
+            if not self.es.ping():
+                raise ConnectionError(f"Elasticsearch ping failed at {self.host}:{self.port}")
+            logger.info(f"Connected to Elasticsearch at {self.host}:{self.port}")
+        except Exception as e:
+            logger.error(f"Failed to connect to Elasticsearch at {self.host}:{self.port}: {e}")
+            raise
 
     def create_index(self, index_name: str, mappings: Dict[str, Any] = None):
         """
@@ -24,14 +37,13 @@ class ElasticSearchDB:
             return
         if mappings is None:
             mappings = {
-                "mappings": {
-                    "properties": {
-                        "text": {"type": "text"},
-                        "metadata": {"type": "object"},
-                    }
+                "properties": {
+                    "text": {"type": "text"},
+                    "metadata": {"type": "object"},
                 }
             }
-        self.es.indices.create(index=index_name, body=mappings)
+        # Use the non-deprecated API: pass mappings directly instead of body=
+        self.es.indices.create(index=index_name, mappings=mappings.get("properties") and mappings or mappings)
         logger.info(f"Created index '{index_name}'.")
 
     def index_chunk(self, index_name: str, doc_id: str, chunk_text: str, metadata: Dict[str, Any]):
@@ -42,7 +54,8 @@ class ElasticSearchDB:
             "text": chunk_text,
             "metadata": metadata,
         }
-        self.es.index(index=index_name, id=doc_id, body=doc)
+        # Use document= instead of deprecated body=
+        self.es.index(index=index_name, id=doc_id, document=doc)
         logger.debug(f"Indexed chunk {doc_id} in index '{index_name}'.")
 
     def index_chunks(self, index_name: str, chunks: List[Dict[str, Any]]):
@@ -75,15 +88,16 @@ class ElasticSearchDB:
         Perform BM25 keyword search.
         Returns list of matching documents with scores.
         """
-        search_body = {
-            "query": {
+        # Use query= and size= instead of deprecated body=
+        response = self.es.search(
+            index=index_name,
+            query={
                 "match": {
                     "text": query_text
                 }
             },
-            "size": limit
-        }
-        response = self.es.search(index=index_name, body=search_body)
+            size=limit
+        )
         hits = response.get("hits", {}).get("hits", [])
         results = []
         for hit in hits:
@@ -95,3 +109,14 @@ class ElasticSearchDB:
             })
         logger.info(f"Elasticsearch search returned {len(results)} results for query '{query_text}'.")
         return results
+
+    def health_check(self) -> bool:
+        """
+        Check if the connection to Elasticsearch is healthy.
+        Returns True if healthy, False otherwise.
+        """
+        try:
+            return self.es.ping()
+        except Exception as e:
+            logger.error(f"Elasticsearch health check failed: {e}")
+            return False

@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CiteRAG — Citation-Aware RAG Platform</title>
+    <meta name="description" content="Upload documents, ask questions, and get citation-grounded answers with hybrid retrieval.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.7);
+            --bg-glass: rgba(255,255,255,0.04);
+            --border: rgba(255,255,255,0.08);
+            --border-hover: rgba(99,102,241,0.4);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent: #6366f1;
+            --accent-light: #818cf8;
+            --accent-glow: rgba(99,102,241,0.25);
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --transition: 0.2s ease;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Background animated gradient */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.08) 0%, transparent 50%),
+                        radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.06) 0%, transparent 50%),
+                        radial-gradient(ellipse at 50% 80%, rgba(59,130,246,0.05) 0%, transparent 50%);
+            animation: bgShift 20s ease-in-out infinite alternate;
+            z-index: -1;
+        }
+        @keyframes bgShift { 0%{transform:rotate(0deg)} 100%{transform:rotate(3deg)} }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 40px 0 32px;
+        }
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-light), #a78bfa, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .header p { color: var(--text-secondary); font-size: 0.95rem; }
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            margin-top: 12px; padding: 6px 14px;
+            background: var(--bg-glass); border: 1px solid var(--border);
+            border-radius: 20px; font-size: 0.8rem; color: var(--text-muted);
+        }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--text-muted);
+            transition: background var(--transition);
+        }
+        .status-dot.online { background: var(--success); box-shadow: 0 0 6px var(--success); }
+        .status-dot.offline { background: var(--error); }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            backdrop-filter: blur(12px);
+            margin-bottom: 20px;
+            transition: border-color var(--transition);
+        }
+        .card:hover { border-color: var(--border-hover); }
+        .card-title {
+            font-size: 1rem; font-weight: 600;
+            margin-bottom: 16px; display: flex;
+            align-items: center; gap: 8px;
+        }
+        .card-title .icon { font-size: 1.1rem; }
+
+        /* Upload Zone */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition);
+            position: relative;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--accent);
+            background: var(--accent-glow);
+        }
+        .upload-zone .icon-lg { font-size: 2.5rem; margin-bottom: 12px; }
+        .upload-zone p { color: var(--text-secondary); font-size: 0.9rem; }
+        .upload-zone .formats { color: var(--text-muted); font-size: 0.8rem; margin-top: 6px; }
+        .upload-zone input { display: none; }
+
+        /* Upload progress */
+        .upload-status {
+            margin-top: 16px; padding: 12px 16px;
+            background: var(--bg-glass); border-radius: var(--radius-sm);
+            font-size: 0.85rem; display: none;
+        }
+        .upload-status.show { display: block; }
+        .progress-bar {
+            width: 100%; height: 4px; background: var(--border);
+            border-radius: 2px; margin-top: 8px; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-light));
+            border-radius: 2px; width: 0%; transition: width 0.4s ease;
+        }
+
+        /* Documents list */
+        .doc-list { list-style: none; }
+        .doc-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 14px; border-radius: var(--radius-sm);
+            background: var(--bg-glass); margin-bottom: 8px;
+            font-size: 0.85rem; transition: background var(--transition);
+        }
+        .doc-item:hover { background: rgba(255,255,255,0.06); }
+        .doc-item .name { color: var(--text-primary); font-weight: 500; }
+        .doc-item .meta { color: var(--text-muted); font-size: 0.78rem; }
+        .doc-item .badge {
+            padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600;
+        }
+        .badge-success { background: rgba(34,197,94,0.15); color: var(--success); }
+        .badge-error { background: rgba(239,68,68,0.15); color: var(--error); }
+        .badge-pending { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .empty-state { text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.85rem; }
+
+        /* Query Section */
+        .query-row { display: flex; gap: 10px; margin-bottom: 12px; }
+        .query-input {
+            flex: 1; padding: 12px 16px;
+            background: var(--bg-glass); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); color: var(--text-primary);
+            font-size: 0.9rem; font-family: inherit; outline: none;
+            transition: border-color var(--transition);
+        }
+        .query-input:focus { border-color: var(--accent); }
+        .query-input::placeholder { color: var(--text-muted); }
+
+        .btn {
+            padding: 12px 24px; border: none; border-radius: var(--radius-sm);
+            font-family: inherit; font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: all var(--transition);
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #7c3aed);
+            color: white;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px var(--accent-glow); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* Mode selector */
+        .mode-selector { display: flex; gap: 6px; margin-bottom: 16px; }
+        .mode-btn {
+            padding: 8px 16px; border: 1px solid var(--border);
+            border-radius: 20px; background: transparent;
+            color: var(--text-secondary); font-size: 0.8rem;
+            font-family: inherit; cursor: pointer;
+            transition: all var(--transition);
+        }
+        .mode-btn.active {
+            background: var(--accent); color: white;
+            border-color: var(--accent);
+        }
+        .mode-btn:hover:not(.active) { border-color: var(--accent); color: var(--text-primary); }
+
+        /* Results */
+        .results-container { margin-top: 16px; }
+        .result-card {
+            background: var(--bg-glass); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 16px;
+            margin-bottom: 10px; transition: border-color var(--transition);
+        }
+        .result-card:hover { border-color: var(--border-hover); }
+        .result-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px;
+        }
+        .result-rank {
+            font-size: 0.75rem; font-weight: 700; color: var(--accent-light);
+            background: rgba(99,102,241,0.12); padding: 3px 10px; border-radius: 12px;
+        }
+        .result-scores { display: flex; gap: 10px; font-size: 0.75rem; color: var(--text-muted); }
+        .result-text {
+            font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7;
+            white-space: pre-wrap; word-break: break-word;
+        }
+        .result-meta {
+            margin-top: 10px; display: flex; gap: 12px; flex-wrap: wrap;
+            font-size: 0.75rem; color: var(--text-muted);
+        }
+        .result-meta span { display: inline-flex; align-items: center; gap: 4px; }
+        .processing-time {
+            text-align: center; color: var(--text-muted);
+            font-size: 0.8rem; margin-top: 12px;
+        }
+
+        /* Spinner */
+        .spinner {
+            display: inline-block; width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-top-color: white; border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Grid layout */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        /* Toast notifications */
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1000; }
+        .toast {
+            padding: 12px 20px; border-radius: var(--radius-sm);
+            margin-bottom: 8px; font-size: 0.85rem;
+            backdrop-filter: blur(12px); border: 1px solid var(--border);
+            animation: slideIn 0.3s ease;
+            max-width: 360px;
+        }
+        .toast-success { background: rgba(34,197,94,0.15); color: var(--success); border-color: rgba(34,197,94,0.3); }
+        .toast-error { background: rgba(239,68,68,0.15); color: var(--error); border-color: rgba(239,68,68,0.3); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+    </style>
+</head>
+<body>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>⚡ CiteRAG</h1>
+            <p>Citation-Aware Multi-Source RAG Platform</p>
+            <div class="status-badge">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Checking backend...</span>
+            </div>
+        </header>
+
+        <!-- Upload + Documents -->
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title"><span class="icon">📄</span> Upload Document</div>
+                <div class="upload-zone" id="uploadZone">
+                    <div class="icon-lg">📁</div>
+                    <p>Drag & drop a file here, or click to browse</p>
+                    <div class="formats">Supported: PDF, DOCX, TXT &middot; Max 10MB</div>
+                    <input type="file" id="fileInput" accept=".pdf,.docx,.txt">
+                </div>
+                <div class="upload-status" id="uploadStatus">
+                    <span id="uploadMsg">Uploading...</span>
+                    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span class="icon">📚</span> Uploaded Documents</div>
+                <ul class="doc-list" id="docList">
+                    <li class="empty-state">No documents uploaded yet</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Query Section -->
+        <div class="card">
+            <div class="card-title"><span class="icon">🔍</span> Query Documents</div>
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="hybrid">⚡ Hybrid</button>
+                <button class="mode-btn" data-mode="vector">🧠 Vector</button>
+                <button class="mode-btn" data-mode="bm25">📝 BM25</button>
+            </div>
+            <div class="query-row">
+                <input type="text" class="query-input" id="queryInput"
+                       placeholder="Ask a question about your documents...">
+                <button class="btn btn-primary" id="queryBtn" disabled>
+                    <span id="queryBtnText">Search</span>
+                </button>
+            </div>
+            <div class="results-container" id="resultsContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        const API = window.location.origin;
+        let selectedMode = 'hybrid';
+        let documents = [];
+
+        // --- Toast notifications ---
+        function showToast(msg, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        // --- Health check ---
+        async function checkHealth() {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            try {
+                const res = await fetch(`${API}/health`, { signal: AbortSignal.timeout(3000) });
+                if (res.ok) {
+                    dot.className = 'status-dot online';
+                    text.textContent = 'Backend connected';
+                    document.getElementById('queryBtn').disabled = false;
+                    return true;
+                }
+            } catch {}
+            dot.className = 'status-dot offline';
+            text.textContent = 'Backend offline';
+            document.getElementById('queryBtn').disabled = true;
+            return false;
+        }
+        checkHealth();
+        setInterval(checkHealth, 15000);
+
+        // --- Upload ---
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+        uploadZone.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', () => { if (fileInput.files.length) uploadFile(fileInput.files[0]); });
+
+        async function uploadFile(file) {
+            const allowed = ['.pdf', '.docx', '.txt'];
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+            if (!allowed.includes(ext)) { showToast('Unsupported file type. Use PDF, DOCX, or TXT.', 'error'); return; }
+            if (file.size > 10485760) { showToast('File exceeds 10MB limit.', 'error'); return; }
+
+            const status = document.getElementById('uploadStatus');
+            const msg = document.getElementById('uploadMsg');
+            const fill = document.getElementById('progressFill');
+            status.classList.add('show');
+            msg.textContent = `Uploading ${file.name}...`;
+            fill.style.width = '30%';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                fill.style.width = '60%';
+                const res = await fetch(`${API}/api/upload`, { method: 'POST', body: formData });
+                const data = await res.json();
+                fill.style.width = '100%';
+
+                if (res.ok && data.status === 'processed') {
+                    msg.textContent = `✅ ${file.name} — ${data.num_chunks} chunks created`;
+                    documents.push({ name: file.name, id: data.document_id, chunks: data.num_chunks, status: 'processed' });
+                    showToast(`${file.name} uploaded and processed successfully!`);
+                } else {
+                    msg.textContent = `⚠️ ${file.name} — ${data.message || 'Processing issue'}`;
+                    documents.push({ name: file.name, id: data.document_id, status: data.status || 'failed' });
+                    showToast(data.message || 'Upload had issues', 'error');
+                }
+                renderDocuments();
+            } catch (err) {
+                fill.style.width = '0%';
+                msg.textContent = `❌ Upload failed: ${err.message}`;
+                showToast('Upload failed — is the backend running?', 'error');
+            }
+            fileInput.value = '';
+            setTimeout(() => status.classList.remove('show'), 5000);
+        }
+
+        function renderDocuments() {
+            const list = document.getElementById('docList');
+            if (!documents.length) { list.innerHTML = '<li class="empty-state">No documents uploaded yet</li>'; return; }
+            list.innerHTML = documents.map(d => `
+                <li class="doc-item">
+                    <div>
+                        <div class="name">${d.name}</div>
+                        <div class="meta">${d.chunks ? d.chunks + ' chunks' : ''} &middot; ${d.id.slice(0,8)}...</div>
+                    </div>
+                    <span class="badge badge-${d.status === 'processed' ? 'success' : 'error'}">
+                        ${d.status}
+                    </span>
+                </li>
+            `).join('');
+        }
+
+        // --- Mode selector ---
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedMode = btn.dataset.mode;
+            });
+        });
+
+        // --- Query ---
+        const queryInput = document.getElementById('queryInput');
+        const queryBtn = document.getElementById('queryBtn');
+
+        queryInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !queryBtn.disabled) runQuery(); });
+        queryBtn.addEventListener('click', runQuery);
+
+        async function runQuery() {
+            const question = queryInput.value.trim();
+            if (!question) return;
+
+            const btnText = document.getElementById('queryBtnText');
+            queryBtn.disabled = true;
+            btnText.innerHTML = '<span class="spinner"></span>';
+
+            const container = document.getElementById('resultsContainer');
+            container.innerHTML = '<div class="empty-state">Searching...</div>';
+
+            try {
+                const res = await fetch(`${API}/api/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question, mode: selectedMode, limit: 10 })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    container.innerHTML = `<div class="empty-state">❌ ${data.detail || 'Query failed'}</div>`;
+                    showToast(data.detail || 'Query failed', 'error');
+                    return;
+                }
+
+                if (!data.results || !data.results.length) {
+                    container.innerHTML = '<div class="empty-state">No results found. Try a different query or upload more documents.</div>';
+                    return;
+                }
+
+                container.innerHTML = data.results.map((r, i) => `
+                    <div class="result-card">
+                        <div class="result-header">
+                            <span class="result-rank">#${i+1}</span>
+                            <div class="result-scores">
+                                <span>Score: ${r.score.toFixed(4)}</span>
+                                ${r.rerank_score != null ? `<span>Rerank: ${r.rerank_score.toFixed(4)}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="result-text">${escapeHtml(r.text)}</div>
+                        <div class="result-meta">
+                            <span>📄 ${r.metadata.document_name || 'Unknown'}</span>
+                            <span>🔖 Chunk ${r.metadata.chunk_index ?? '?'}/${r.metadata.total_chunks ?? '?'}</span>
+                            ${r.metadata.domain ? `<span>🏷️ ${r.metadata.domain}</span>` : ''}
+                        </div>
+                    </div>
+                `).join('') + `<div class="processing-time">Completed in ${data.processing_time_ms.toFixed(0)}ms &middot; ${data.total_results} results</div>`;
+            } catch (err) {
+                container.innerHTML = `<div class="empty-state">❌ ${err.message}</div>`;
+                showToast('Query failed — check backend connection', 'error');
+            } finally {
+                queryBtn.disabled = false;
+                btnText.textContent = 'Search';
+            }
+        }
+
+        function escapeHtml(text) {
+            const d = document.createElement('div');
+            d.textContent = text;
+            return d.innerHTML;
+        }
+    </script>
+</body>
+</html>

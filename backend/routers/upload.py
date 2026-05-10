@@ -5,7 +5,7 @@ import os
 import shutil
 from pathlib import Path
 import logging
-from services.processor import process_uploaded_file
+from ..services.processor import process_uploaded_file
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

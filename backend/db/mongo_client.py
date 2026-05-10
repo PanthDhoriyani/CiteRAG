@@ -4,16 +4,29 @@ MongoDB client wrapper for metadata and raw text storage.
 from pymongo import MongoClient
 import logging
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+
+from ..config import config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class MongoDB:
-    def __init__(self, host: str = "localhost", port: int = 27017, db_name: str = "rag_platform"):
-        self.client = MongoClient(host=host, port=port)
-        self.db = self.client[db_name]
-        logger.info(f"Connected to MongoDB at {host}:{port}, database '{db_name}'")
+    def __init__(self, host: Optional[str] = None, port: Optional[int] = None, db_name: Optional[str] = None):
+        # Use provided values or fall back to config
+        self.host = host if host is not None else config.MONGO_HOST
+        self.port = port if port is not None else config.MONGO_PORT
+        self.db_name = db_name if db_name is not None else config.MONGO_DB_NAME
+
+        try:
+            self.client = MongoClient(host=self.host, port=self.port)
+            self.db = self.client[self.db_name]
+            # Test connection
+            self.client.admin.command('ping')
+            logger.info(f"Connected to MongoDB at {self.host}:{self.port}, database '{self.db_name}'")
+        except Exception as e:
+            logger.error(f"Failed to connect to MongoDB at {self.host}:{self.port}: {e}")
+            raise
 
     def get_collection(self, collection_name: str):
         """
@@ -56,3 +69,15 @@ class MongoDB:
         results = list(cursor)
         logger.info(f"Found {len(results)} chunks in collection '{collection_name}' matching query.")
         return results
+
+    def health_check(self) -> bool:
+        """
+        Check if the connection to MongoDB is healthy.
+        Returns True if healthy, False otherwise.
+        """
+        try:
+            self.client.admin.command('ping')
+            return True
+        except Exception as e:
+            logger.error(f"MongoDB health check failed: {e}")
+            return False

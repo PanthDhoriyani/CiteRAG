@@ -5,15 +5,27 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, PointStruct
 import logging
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+
+from ..config import config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class QdrantDB:
-    def __init__(self, host: str = "localhost", port: int = 6333):
-        self.client = QdrantClient(host=host, port=port)
-        logger.info(f"Connected to Qdrant at {host}:{port}")
+    def __init__(self, host: Optional[str] = None, port: Optional[int] = None):
+        # Use provided values or fall back to config
+        self.host = host if host is not None else config.QDRANT_HOST
+        self.port = port if port is not None else config.QDRANT_PORT
+
+        try:
+            self.client = QdrantClient(host=self.host, port=self.port)
+            # Test connection
+            self.client.get_collections()
+            logger.info(f"Connected to Qdrant at {self.host}:{self.port}")
+        except Exception as e:
+            logger.error(f"Failed to connect to Qdrant at {self.host}:{self.port}: {e}")
+            raise
 
     def create_collection(self, collection_name: str, vector_size: int = 1024, distance: Distance = Distance.COSINE):
         """
@@ -75,3 +87,15 @@ class QdrantDB:
             })
         logger.info(f"Search returned {len(results)} results from '{collection_name}'.")
         return results
+
+    def health_check(self) -> bool:
+        """
+        Check if the connection to Qdrant is healthy.
+        Returns True if healthy, False otherwise.
+        """
+        try:
+            self.client.get_collections()
+            return True
+        except Exception as e:
+            logger.error(f"Qdrant health check failed: {e}")
+            return False
