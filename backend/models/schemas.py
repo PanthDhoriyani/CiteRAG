@@ -32,8 +32,21 @@ class SearchResult(BaseModel):
 
 
 class QueryResponse(BaseModel):
-    """Response model for query endpoint."""
+    """Response model for query endpoint (bm25, vector, hybrid modes)."""
     query: str
     results: List[SearchResult]
     total_results: int
     processing_time_ms: float
+
+
+class LiberalAnswer(BaseModel):
+    """Model for the answer portion of liberal mode response."""
+    document_based: str
+    additional_explanation: str
+    citations: List[Dict[str, Any]]
+
+
+class LiberalQueryResponse(BaseModel):
+    """Response model for liberal mode query endpoint."""
+    answer: LiberalAnswer
+    metadata: Dict[str, Any]

@@ -38,6 +38,11 @@ class Config:
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
     MAX_FILE_SIZE: int = int(os.getenv("MAX_FILE_SIZE", "10485760"))  # 10MB
 
+    # Ollama settings
+    OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "localhost")
+    OLLAMA_PORT: int = int(os.getenv("OLLAMA_PORT", "11434"))
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "llama3:8b")
+
     @classmethod
     def validate(cls) -> bool:
         """Validate configuration values."""
