@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 from pathlib import Path
 import logging
 
@@ -39,13 +40,42 @@ if frontend_dir.exists():
 
 @app.get("/")
 async def root():
-    return {
-        "message": "Welcome to the RAG Platform API",
-        "docs": "/docs",
-        "frontend": "/frontend/index.html",
-        "health": "/health",
-    }
+    """Redirect root to the frontend UI."""
+    return RedirectResponse(url="/frontend/index.html")
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    """Health check endpoint with optional service status."""
+    status = {"status": "healthy", "api": True}
+
+    # Check database connections (non-blocking, best-effort)
+    try:
+        from .db.elastic_client import ElasticSearchDB
+        es = ElasticSearchDB()
+        status["elasticsearch"] = es.health_check()
+    except Exception:
+        status["elasticsearch"] = False
+
+    try:
+        from .db.mongo_client import MongoDB
+        mongo = MongoDB()
+        status["mongodb"] = mongo.health_check()
+    except Exception:
+        status["mongodb"] = False
+
+    try:
+        from .db.qdrant_client import QdrantDB
+        qdrant = QdrantDB()
+        status["qdrant"] = qdrant.health_check()
+    except Exception:
+        status["qdrant"] = False
+
+    # Overall status
+    all_healthy = all([
+        status.get("elasticsearch", False),
+        status.get("mongodb", False),
+        status.get("qdrant", False),
+    ])
+    status["status"] = "healthy" if all_healthy else "degraded"
+
+    return status

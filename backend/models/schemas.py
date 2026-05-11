@@ -15,7 +15,7 @@ class QueryRequest(BaseModel):
         None, description="Optional domain to filter by (e.g., 'research', 'legal')"
     )
     mode: str = Field(
-        "hybrid", description="Search mode: 'bm25', 'vector', or 'hybrid'"
+        "hybrid", description="Search mode: 'bm25', 'vector', 'hybrid', or 'liberal'"
     )
     limit: int = Field(
         10, description="Maximum number of results to return", ge=1, le=100

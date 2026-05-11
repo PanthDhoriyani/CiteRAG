@@ -43,7 +43,7 @@ class ElasticSearchDB:
                 }
             }
         # Use the non-deprecated API: pass mappings directly instead of body=
-        self.es.indices.create(index=index_name, mappings=mappings.get("properties") and mappings or mappings)
+        self.es.indices.create(index=index_name, mappings=mappings)
         logger.info(f"Created index '{index_name}'.")
 
     def index_chunk(self, index_name: str, doc_id: str, chunk_text: str, metadata: Dict[str, Any]):

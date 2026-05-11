@@ -226,6 +226,35 @@
             font-size: 0.8rem; margin-top: 12px;
         }
 
+        /* Liberal mode answer sections */
+        .liberal-section {
+            background: var(--bg-glass); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 20px;
+            margin-bottom: 12px;
+        }
+        .liberal-section-title {
+            font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.05em; margin-bottom: 10px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .liberal-section-title .tag {
+            padding: 2px 8px; border-radius: 10px; font-size: 0.7rem;
+        }
+        .tag-doc { background: rgba(34,197,94,0.15); color: var(--success); }
+        .tag-ai { background: rgba(139,92,246,0.15); color: #a78bfa; }
+        .liberal-text {
+            font-size: 0.88rem; color: var(--text-secondary); line-height: 1.8;
+            white-space: pre-wrap; word-break: break-word;
+        }
+        .citations-list { margin-top: 12px; }
+        .citation-item {
+            padding: 8px 12px; background: rgba(255,255,255,0.02);
+            border-left: 3px solid var(--accent); margin-bottom: 6px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 0.8rem; color: var(--text-muted);
+        }
+        .citation-item .cite-doc { color: var(--text-secondary); font-weight: 500; }
+
         /* Spinner */
         .spinner {
             display: inline-block; width: 16px; height: 16px;
@@ -303,6 +332,7 @@
                 <button class="mode-btn active" data-mode="hybrid">⚡ Hybrid</button>
                 <button class="mode-btn" data-mode="vector">🧠 Vector</button>
                 <button class="mode-btn" data-mode="bm25">📝 BM25</button>
+                <button class="mode-btn" data-mode="liberal">🎓 Liberal</button>
             </div>
             <div class="query-row">
                 <input type="text" class="query-input" id="queryInput"
@@ -463,6 +493,51 @@
                     return;
                 }
 
+                // Handle liberal mode response (different structure)
+                if (selectedMode === 'liberal' && data.answer) {
+                    const ans = data.answer;
+                    const meta = data.metadata || {};
+                    let html = '';
+
+                    // Document-based answer section
+                    html += `<div class="liberal-section">
+                        <div class="liberal-section-title">
+                            📄 Document-Based Answer
+                            <span class="tag tag-doc">From your documents</span>
+                        </div>
+                        <div class="liberal-text">${escapeHtml(ans.document_based || 'No document-based answer available.')}</div>
+                    </div>`;
+
+                    // Additional explanation section
+                    if (ans.additional_explanation) {
+                        html += `<div class="liberal-section">
+                            <div class="liberal-section-title">
+                                🧠 Additional Explanation
+                                <span class="tag tag-ai">AI-generated context</span>
+                            </div>
+                            <div class="liberal-text">${escapeHtml(ans.additional_explanation)}</div>
+                        </div>`;
+                    }
+
+                    // Citations
+                    if (ans.citations && ans.citations.length) {
+                        html += `<div class="citations-list">`;
+                        ans.citations.forEach((c, i) => {
+                            html += `<div class="citation-item">
+                                <span class="cite-doc">📎 ${c.document_name || 'Unknown'}</span>
+                                ${c.page ? ` · Page ${c.page}` : ''}
+                                ${c.chunk_text ? `<br><em>${escapeHtml(c.chunk_text)}</em>` : ''}
+                            </div>`;
+                        });
+                        html += `</div>`;
+                    }
+
+                    html += `<div class="processing-time">Completed in ${meta.processing_time_ms?.toFixed(0) || '?'}ms · Model: ${meta.llm_model || 'unknown'}</div>`;
+                    container.innerHTML = html;
+                    return;
+                }
+
+                // Standard mode response (results array)
                 if (!data.results || !data.results.length) {
                     container.innerHTML = '<div class="empty-state">No results found. Try a different query or upload more documents.</div>';
                     return;

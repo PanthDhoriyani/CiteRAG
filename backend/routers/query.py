@@ -1,11 +1,14 @@
 from fastapi import APIRouter, HTTPException
 import time
+import logging
 from typing import List, Optional, Union
 from ..models.schemas import QueryRequest, QueryResponse, SearchResult, LiberalQueryResponse
 from ..services.retriever import Retriever
 from ..services.reranker import Reranker
 from ..services.liberal_mode import LiberalModeService
 from ..config import config
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -22,7 +25,7 @@ def get_retriever_and_reranker():
             _reranker = Reranker()
         except Exception as e:
             # Log the error (in a real app, you'd use proper logging)
-            print(f"Failed to initialize retriever or reranker: {e}")
+            logger.error(f"Failed to initialize retriever or reranker: {e}")
             raise HTTPException(
                 status_code=503,
                 detail="Service unavailable: Could not connect to required services (Elasticsearch, Qdrant) or load models."
@@ -35,7 +38,7 @@ def get_liberal_mode_service():
         try:
             _liberal_mode_service = LiberalModeService()
         except Exception as e:
-            print(f"Failed to initialize liberal mode service: {e}")
+            logger.error(f"Failed to initialize liberal mode service: {e}")
             raise HTTPException(
                 status_code=503,
                 detail="Service unavailable: Could not initialize liberal mode service."
@@ -178,7 +181,7 @@ async def query_documents(request: QueryRequest):
 
     except Exception as e:
         # Log the error (in a real app, you'd use proper logging)
-        print(f"Error in query_documents: {e}")
+        logger.error(f"Error in query_documents: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Internal server error: {str(e)}"

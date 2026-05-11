@@ -12,10 +12,12 @@ services:
       - QDRANT_HOST=qdrant
       - MONGO_HOST=mongo
       - ES_HOST=elasticsearch
+      - OLLAMA_HOST=ollama
     depends_on:
       - qdrant
       - mongo
       - elasticsearch
+      - ollama
     restart: unless-stopped
 
   # Qdrant Vector Database
@@ -51,7 +53,17 @@ services:
       - es_data:/usr/share/elasticsearch/data
     restart: unless-stopped
 
+  # Ollama LLM Runtime (for Liberal/Strict mode)
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
 volumes:
   qdrant_data:
   mongo_data:
   es_data:
+  ollama_data:
