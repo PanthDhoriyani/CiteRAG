@@ -199,6 +199,10 @@ docker-compose.override.yml
 .env.staging
 .env.production
 
+# Credential files — NEVER commit these
+mongodb.text
+*.text
+
 # (AG) HuggingFace / sentence-transformers model cache
 #   Downloaded models can be very large (1GB+), never commit them
 .cache/
@@ -222,4 +226,42 @@ package-lock.json
 *.gguf
 *.ggml
 
-# End of file
+# ── CiteRAG Project-Specific ─────────────────────────────────────────────────
+
+# Uploaded documents (user files, can be large and are not source code)
+uploads/
+uploads/*
+
+# Server & application logs
+*.log
+server.log
+logs/
+
+# Test scripts (local dev helpers, not needed on GitHub)
+test_*.py
+test_upload.txt
+
+# Python virtual environment
+venv/
+.venv/
+env/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# OS generated
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Credential & secret files (CRITICAL - never commit)
+*.text
+mongodb.text
+*.key
+secrets.json
+
+# End of file

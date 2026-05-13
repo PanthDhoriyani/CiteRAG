@@ -1,64 +1,150 @@
-# Memory Log
+# CiteRAG — Session Memory & Change Log
 
-- 2026-05-09: Set up FastAPI project structure and basic file upload endpoint (Task #1 completed). Created backend/, routers/, main.py, upload router with file validation and storage.
-- 2026-05-09: Created extractor service (backend/services/extractor.py) with multi-method text extraction: PyMuPDF (primary), pdfplumber (fallback), Tesseract OCR (scanned PDFs), python-docx (DOCX), plain read (TXT).
-- 2026-05-09: Created chunker service (backend/services/chunker.py) using LangChain's RecursiveCharacterTextSplitter with configurable chunk size (512) and overlap (128). Includes functions for plain chunking and chunking with metadata attachment.
-- 2026-05-09: Created embedder service (backend/services/embedder.py) using sentence-transformers BAAI/bge-large-en-v1.5 model. Provides functions to embed lists of texts and single queries, returning numpy arrays.
-- 2026-05-09: Created database clients:
-  • Qdrant (backend/db/qdrant_client.py) for vector storage with collection management and search.
-  • MongoDB (backend/db/mongo_client.py) for metadata and raw text storage.
-  • Elasticsearch (backend/db/elastic_client.py) for BM25 keyword search.
-- 2026-05-09: Created processor service (backend/services/processor.py) that orchestrates the full pipeline: extraction → chunking → embedding → storage in all three databases (Qdrant, MongoDB, Elasticsearch).
-- 2026-05-09: Updated upload router (backend/routers/upload.py) to call the processor after saving the file, enabling end-to-end ingestion: upload → text extraction → chunking → embedding → storage in Qdrant, MongoDB, and Elasticsearch.
-- 2026-05-09: Task #2 completed: Implemented text extraction, chunking, embedding, and storage systems. All services are integrated and the upload endpoint returns processing results.
-- 2026-05-09: Created flow.md (root) explaining the project directory structure, file purposes, and data flow for backend (Phase 1 only). Updated to reflect only implemented files/folders.
-- 2026-05-10: Improved configuration management and database connectivity:
-  • Created centralized configuration module (backend/config.py) using environment variables with .env file support
-  • Updated all database clients (qdrant_client.py, mongo_client.py, elastic_client.py) to:
-    - Accept optional connection parameters with fallback to configuration values
-    - Add connection health check methods
-    - Improve error handling and logging
-    - Maintain backward compatibility
-  • Updated processor service (processor.py) to utilize the new configuration system
-  • Added requirements for python-dotenv
-  • Created .env.example template for environment configuration
-  • These changes enable easy configuration for different environments (local, Docker, production) while maintaining existing functionality
-- 2026-05-11 (AG Session 1): Code review, bug fixes, and improvements to make the project runnable locally:
-  • Created missing `__init__.py` files in all 5 package directories (backend/, routers/, services/, db/, models/) — without these, Python could not resolve any imports
-  • Fixed `backend/main.py`: changed absolute imports to relative imports
-  • Fixed `backend/routers/upload.py`: changed absolute import to relative import
-  • Fixed `backend/services/chunker.py`: updated import from deprecated `langchain.text_splitter` to `langchain_text_splitters`
-  • Fixed `requirements.txt`: added missing dependencies — `pdf2image`, `Pillow`, `numpy`
-  • Fixed `Dockerfile`: corrected CMD from `main:app` to `backend.main:app`
-  • Fixed `backend/db/elastic_client.py`: replaced deprecated `body=` parameter with keyword arguments for Elasticsearch 8.x compatibility
-  • Added CORS middleware to `backend/main.py` so the frontend can communicate with the backend API
-  • Added static file serving in `backend/main.py` to serve the frontend from `/frontend/`
-  • Created `frontend/index.html` — a single-page dark-theme UI with document upload, query interface, and results display
-  • Created `.env` file from `.env.example` for local development (localhost defaults)
-  • Installed all missing pip packages into the venv
-  • Verified: app starts with `uvicorn backend.main:app`, health check responds, frontend loads and connects to backend
-- 2026-05-11 (AG Session 2): Comprehensive code improvements and documentation update:
-  • Fixed `requirements.txt`: added missing `langchain-text-splitters` package (separate from `langchain` in v0.2+, required by chunker.py)
-  • Fixed `backend/models/schemas.py`: updated `mode` field description to include 'liberal' option (was missing despite being implemented)
-  • Fixed `backend/routers/query.py`: replaced all `print()` calls with proper `logger.error()` using Python's logging framework
-  • Fixed `backend/db/elastic_client.py`: simplified confusing no-op expression in `create_index` mappings logic
-  • Enhanced `backend/main.py`:
-    - Root path (`/`) now redirects to frontend UI instead of returning JSON
-    - Health check (`/health`) now reports individual service statuses (Elasticsearch, MongoDB, Qdrant) with overall degraded/healthy status
-  • Updated `frontend/index.html`:
-    - Added 🎓 Liberal mode button to the mode selector
-    - Added liberal mode response rendering with two-section layout (Document-Based Answer + Additional Explanation)
-    - Added citation display with document name, page, and chunk text preview
-    - Added CSS styles for liberal mode sections, tags, and citation items
-  • Updated `docker-compose.yml`:
-    - Added Ollama LLM Runtime service (ollama/ollama:latest) on port 11434
-    - Added OLLAMA_HOST env var to backend service
-    - Added ollama_data volume for model persistence
-    - Backend now depends_on ollama
-  • Rewrote `flow.md` with complete documentation including:
-    - Phase 3B (Liberal Mode) data flow
-    - Updated file roles and responsibilities
-    - Updated "How to Run Locally" with Ollama instructions
-    - Updated summary table with Liberal Mode layer
-  • Updated `memory.md` with this session's changes
-  • Updated `planning/PROGRESS.md` to mark Phase 3B as complete
+> Running log of all major decisions, changes, and architectural choices made across development sessions.
+
+---
+
+## Session 1 — Project Foundation
+**Date:** Early May 2026
+
+### What was built
+- Designed the overall RAG architecture (3-database hybrid approach)
+- Set up FastAPI backend skeleton
+- Implemented document ingestion pipeline:
+  - Text extraction (PyMuPDF → pdfplumber → Tesseract OCR → DOCX → TXT)
+  - Chunking with RecursiveCharacterTextSplitter (512 tokens, 128 overlap)
+  - Embedding with BAAI/bge-large-en-v1.5 (1024-dim local model)
+  - Triple storage: Qdrant + MongoDB + Elasticsearch
+
+### Key decisions
+- **Why 3 databases?** Each is specialized: Qdrant for vector similarity, ES for keyword BM25, MongoDB for metadata
+- **Why 512-token chunks?** Balances context (enough meaning) vs precision (not too much noise)
+- **Why BGE embeddings?** BAAI/bge-large-en-v1.5 ranks #1 on MTEB benchmark for retrieval at the time
+
+---
+
+## Session 2 — Hybrid Retrieval & Reranking
+**Date:** Mid May 2026
+
+### What was built
+- `retriever.py` — BM25 (Elasticsearch) + Vector (Qdrant) hybrid search
+- `reranker.py` — Cross-encoder reranking with BAAI/bge-reranker-large
+- `POST /api/query` endpoint
+- Basic frontend (`frontend/index.html`)
+- Health check endpoint (`GET /health`)
+
+### Key decisions
+- **Why hybrid?** BM25 catches exact keywords (names, numbers), vector catches concepts. Hybrid misses fewer results
+- **Why rerank?** First retrieval is fast but imprecise. Cross-encoder is slow but very accurate. Two-stage pipeline = speed + quality
+
+---
+
+## Session 3 — Stabilization & Bug Fixes
+**Date:** 2026-05-11
+
+### What was fixed
+- Fixed relative import issues (package hierarchy standardization)
+- Updated Elasticsearch API calls for v8 compatibility
+- Installed missing dependencies
+- Fixed frontend CORS and API routing issues
+- Updated documentation (flow.md, memory.md, PROGRESS.md)
+
+---
+
+## Session 4 — Cloud Migration & LLM Integration
+**Date:** 2026-05-13 (Part 1)
+
+### What was migrated
+- **MongoDB** → MongoDB Atlas (SRV connection string)
+- **Elasticsearch** → Elastic Cloud (HTTPS + API key)
+- **Qdrant** → Qdrant Cloud (URL + API key)
+
+### LLM integration
+- `liberal_mode.py` rewritten to support 3 providers: Ollama (local), Groq (cloud), Gemini (cloud)
+- Integrated Google Gemini 2.5 Flash via `google-genai` SDK (replaced deprecated `google-generativeai`)
+- Set `LLM_PROVIDER=gemini` as default in `.env`
+- Resolved Gemini quota issues by switching from `gemini-2.5-pro` → `gemini-2.5-flash`
+
+### Key decisions
+- **Why Gemini Flash over Pro?** Flash is free tier, faster, and sufficient for document Q&A
+- **Why cloud DBs?** Removes need for Docker, works on any machine, enables future multi-user deployment
+
+---
+
+## Session 5 — Document Management & 2-Mode UI
+**Date:** 2026-05-13 (Part 2)
+
+### What was built
+
+#### Backend: Document Management API
+- `GET /api/documents` — lists all unique documents via MongoDB aggregation
+- `DELETE /api/documents/{id}` — deletes from MongoDB + Qdrant + Elasticsearch simultaneously
+- Added `list_documents()` and `delete_document_chunks()` to `mongo_client.py`
+- Added `delete_by_document_id()` to `qdrant_client.py` (FilterSelector)
+- Added `delete_by_document_id()` to `elastic_client.py` (keyword + match_phrase fallback)
+- New router: `backend/routers/documents.py`
+
+#### Backend: 2-Mode Query System
+- Replaced 4 modes (bm25/vector/hybrid/liberal) with clean 2-mode system
+- **Strict mode** — hybrid retrieval + location metadata + Gemini search keywords
+- **Liberal mode** — hybrid retrieval + Gemini 2.5 Flash full answer
+- Legacy modes (bm25/vector/hybrid) still accepted by API, mapped to strict internally
+- New service: `backend/services/strict_mode.py`
+
+#### Frontend: Document Library
+- Document Library panel with checkboxes per document
+- Select All / None toggle
+- Delete button per document with confirmation
+- Filter bar showing which documents are being searched
+- Passes selected `document_ids` to query payload for filtered retrieval
+
+#### Liberal Mode Quality Improvements
+- Rich Markdown prompt — Gemini now responds with headings, bold, bullets, blockquotes
+- `marked.js` CDN added for client-side Markdown rendering
+- Markdown CSS styles for dark theme (headings, blockquotes, code blocks, lists)
+
+#### Meta-Query Detection
+- Pattern list (`_META_PATTERNS`) detects vague questions like "explain this document"
+- On detection: fetch limit × 6 chunks, reframe question as explicit overview request
+- Document names always injected into LLM prompt so Gemini knows what files are loaded
+- Prevents the bug: "explain this document" → generic answer about what a document is
+
+### Key decisions
+- **Why detect meta queries separately?** Vague queries return poor search results → poor LLM context. Reframing ensures Gemini gets enough content to give a real answer
+- **Why marked.js instead of custom parser?** Battle-tested, handles edge cases (nested lists, code blocks), tiny bundle
+- **Why delete from all 3 DBs simultaneously?** Consistency — a document must be fully deleted everywhere or it would still appear in search
+
+---
+
+## Configuration Reference (Current .env)
+
+```
+MONGO_URI         = mongodb+srv://...atlas.mongodb.net/...
+ES_URL            = https://...elastic-cloud...
+ES_API_KEY        = ...
+QDRANT_URL        = https://...qdrant.io
+QDRANT_API_KEY    = ...
+
+LLM_PROVIDER      = gemini
+GEMINI_API_KEY    = AIza...
+GEMINI_MODEL      = gemini-2.5-flash
+```
+
+---
+
+## Known Issues & Gotchas
+
+| Issue | Status | Notes |
+|-------|--------|-------|
+| Cold start delay (2-5 min) | ⚠️ Known | BGE embedding model loads on first request. Subsequent queries are fast (~5s) |
+| Image-heavy PDFs | ⚠️ Partial | Tesseract OCR covers most cases. Low-res scans may have poor extraction |
+| Gemini rate limits | ✅ Handled | Flash tier has generous free quota; errors are caught and returned gracefully |
+| Qdrant startup | ✅ Fixed | Cloud mode doesn't crash on startup — errors only on actual query attempts |
+
+---
+
+## What's Next
+
+- **Phase 5:** React frontend (multi-tab, search history, document preview)
+- **Phase 6:** Production deployment (Render/Railway backend + Vercel frontend)
+- **Strict Mode Phase 2:** Page number extraction from PDF metadata, line-level citation

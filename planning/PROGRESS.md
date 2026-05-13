@@ -1,172 +1,127 @@
 # CiteRAG — Project Progress Tracker
 
-> **Last Updated:** 2026-05-11  
-> **Overall Progress:** Phase 1, 2, & 3B complete. Phase 3A is next.
+> **Last Updated:** 2026-05-14
+> **Overall Progress:** Phases 1, 2, 3A, 3B, and Document Management complete. Cloud migration done.
 
 ---
 
 ## Progress Overview
 
 ```
-Phase 1: Document Ingestion Pipeline    ██████████ 100% ✅
-Phase 2: Hybrid Retrieval & Reranking   ██████████ 100% ✅
-Phase 3B: Liberal Analysis Mode         ██████████ 100% ✅
-Phase 3A: Strict Analysis Mode          ░░░░░░░░░░   0% ← NEXT
-Phase 4: Full Frontend UI               ███░░░░░░░  30% (basic UI with liberal mode exists)
-Phase 5: Docker Deployment              ████░░░░░░  40% (Dockerfile + compose + Ollama exist)
+Phase 1: Document Ingestion Pipeline        ██████████ 100% ✅
+Phase 2: Hybrid Retrieval & Reranking       ██████████ 100% ✅
+Phase 3A: Strict Analysis Mode              ██████████ 100% ✅
+Phase 3B: Liberal Analysis Mode (Gemini)    ██████████ 100% ✅
+Phase 3C: Document Management UI            ██████████ 100% ✅
+Phase 4: Cloud Migration (All DBs)          ██████████ 100% ✅
+Phase 5: Full React Frontend                ░░░░░░░░░░   0% ← NEXT
+Phase 6: Production Deployment              ░░░░░░░░░░   0% ← FUTURE
 ```
 
 ---
 
 ## ✅ Phase 1 — Document Ingestion Pipeline (COMPLETE)
 
-Everything needed to upload, extract, chunk, embed, and store documents.
-
 | # | Task | Status | Key Files |
-|---|------|--------|-----------| 
-| 1.1 | File Upload Endpoint (`POST /api/upload`) | ✅ Done | `backend/routers/upload.py` |
-| 1.2 | Text Extraction (PyMuPDF → pdfplumber → Tesseract OCR → DOCX → TXT) | ✅ Done | `backend/services/extractor.py` |
-| 1.3 | Metadata Extraction (document_id, chunk_index, domain, timestamps) | ✅ Done | Embedded in `processor.py` & `chunker.py` |
-| 1.4 | Semantic Chunking (512 tokens, 128 overlap, RecursiveCharacterTextSplitter) | ✅ Done | `backend/services/chunker.py` |
-| 1.5 | Embedding Generation (BAAI/bge-large-en-v1.5, 1024-dim vectors) | ✅ Done | `backend/services/embedder.py` |
-| 1.6 | Storage — Qdrant (vectors) + MongoDB (metadata) + Elasticsearch (BM25) | ✅ Done | `backend/db/qdrant_client.py`, `mongo_client.py`, `elastic_client.py` |
+|---|------|--------|-----------|
+| 1.1 | File Upload Endpoint (`POST /api/upload`) | ✅ | `backend/routers/upload.py` |
+| 1.2 | Text Extraction (PyMuPDF → pdfplumber → Tesseract OCR → DOCX → TXT) | ✅ | `backend/services/extractor.py` |
+| 1.3 | Metadata Extraction (document_id, chunk_index, domain) | ✅ | `backend/services/processor.py` |
+| 1.4 | Semantic Chunking (512 tokens, 128 overlap) | ✅ | `backend/services/chunker.py` |
+| 1.5 | Embedding Generation (BAAI/bge-large-en-v1.5, 1024-dim) | ✅ | `backend/services/embedder.py` |
+| 1.6 | Triple Storage: Qdrant + MongoDB + Elasticsearch | ✅ | `backend/db/` |
 
 ---
 
 ## ✅ Phase 2 — Hybrid Retrieval & Reranking (COMPLETE)
 
-Everything needed to query documents with keyword, semantic, or hybrid search + reranking.
+| # | Task | Status | Key Files |
+|---|------|--------|-----------|
+| 2.1 | Query Endpoint (`POST /api/query`) | ✅ | `backend/routers/query.py` |
+| 2.2 | BM25 Keyword Search (Elasticsearch) | ✅ | `backend/services/retriever.py` |
+| 2.3 | Vector Semantic Search (Qdrant + BGE embeddings) | ✅ | `backend/services/retriever.py` |
+| 2.4 | Merge & Deduplicate Results (weighted hybrid scoring) | ✅ | `backend/services/retriever.py` |
+| 2.5 | Cross-Encoder Reranking (BAAI/bge-reranker-large) | ✅ | `backend/services/reranker.py` |
+| 2.6 | Pydantic Request/Response Schemas | ✅ | `backend/models/schemas.py` |
+
+---
+
+## ✅ Phase 3A — Strict Analysis Mode (COMPLETE)
+
+Replaced 4-mode system (bm25/vector/hybrid/liberal) with clean 2-mode UX.
 
 | # | Task | Status | Key Files |
-|---|------|--------|-----------| 
-| 2.1 | Query Input Endpoint (`POST /api/query`) | ✅ Done | `backend/routers/query.py` |
-| 2.2 | BM25 Keyword Retrieval (Elasticsearch) | ✅ Done | `backend/services/retriever.py` |
-| 2.3 | Vector Semantic Retrieval (Qdrant + BGE embeddings) | ✅ Done | `backend/services/retriever.py` |
-| 2.4 | Merge & Deduplicate Results (union of BM25 + vector, weighted scoring) | ✅ Done | `backend/services/retriever.py` |
-| 2.5 | Cross-Encoder Reranking (BAAI/bge-reranker-large) | ✅ Done | `backend/services/reranker.py` |
-| 2.6 | Pydantic Request/Response Models (QueryRequest, QueryResponse, SearchResult) | ✅ Done | `backend/models/schemas.py` |
+|---|------|--------|-----------|
+| 3A.1 | Strict mode service with enriched result metadata | ✅ | `backend/services/strict_mode.py` |
+| 3A.2 | Document location display (page number, section X of Y) | ✅ | `strict_mode.py` |
+| 3A.3 | Gemini-generated Google Search Keywords (5 per query) | ✅ | `strict_mode.py` |
+| 3A.4 | Legacy mode backwards compat (bm25/vector/hybrid → strict) | ✅ | `backend/routers/query.py` |
+| 3A.5 | Frontend: 2-mode UI (Strict / Liberal buttons) | ✅ | `frontend/index.html` |
+| 3A.6 | Frontend: Clickable keyword pills linking to Google Search | ✅ | `frontend/index.html` |
 
 ---
 
 ## ✅ Phase 3B — Liberal Analysis Mode (COMPLETE)
 
-Educational, explanation-friendly answers that combine document evidence with AI reasoning.
+| # | Task | Status | Key Files |
+|---|------|--------|-----------|
+| 3B.1 | Multi-provider LLM routing (Ollama / Groq / Gemini) | ✅ | `backend/services/liberal_mode.py` |
+| 3B.2 | Google Gemini 2.5 Flash integration (google-genai SDK) | ✅ | `liberal_mode.py`, `config.py` |
+| 3B.3 | Structured prompt (Document Answer + AI Explanation) | ✅ | `liberal_mode.py` |
+| 3B.4 | Markdown response formatting (headings, bold, bullets) | ✅ | `liberal_mode.py` prompt |
+| 3B.5 | Frontend Markdown rendering (marked.js) | ✅ | `frontend/index.html` |
+| 3B.6 | Meta-query detection ("explain this document" → document overview) | ✅ | `liberal_mode.py` |
+| 3B.7 | Image-heavy PDF fallback (warns user, uses general knowledge) | ✅ | `liberal_mode.py` |
+| 3B.8 | Document names always injected into LLM prompt | ✅ | `liberal_mode.py` |
+
+---
+
+## ✅ Phase 3C — Document Management UI (COMPLETE)
 
 | # | Task | Status | Key Files |
-|---|------|--------|-----------| 
-| 3B.1 | Document-Based Answer Generation | ✅ Done | `backend/services/liberal_mode.py` |
-| 3B.2 | LLM Knowledge Expansion | ✅ Done | `backend/services/liberal_mode.py` |
-| 3B.3 | Source Transparency | ✅ Done | Response separates document-based vs AI-added content |
-| 3B.4 | Liberal Mode Output Structure | ✅ Done | Two sections: "Document-Based Answer" + "Additional Explanation" |
-| 3B.5 | Liberal Mode System Prompt | ✅ Done | Educational assistant prompt in `liberal_mode.py` |
-| 3B.6 | Pydantic Models for Liberal Response | ✅ Done | `LiberalAnswer`, `LiberalQueryResponse` in `schemas.py` |
-| 3B.7 | Frontend Liberal Mode UI | ✅ Done | Mode button + two-section response display + citations |
-| 3B.8 | Ollama Integration | ✅ Done | HTTP client in `liberal_mode.py`, Ollama in `docker-compose.yml` |
-
-### How Liberal Mode Works
-1. User submits query with `mode="liberal"` → `query.py`
-2. Hybrid search retrieves relevant chunks → `retriever.py`
-3. Cross-encoder reranks results → `reranker.py`
-4. Top chunks sent as context to Ollama LLM → `liberal_mode.py`
-5. LLM response parsed into document-based + additional explanation sections
-6. Structured response returned with citations and metadata
-
-### Prerequisites for Liberal Mode
-- **Ollama** installed and running (`ollama serve` or via Docker)
-- **LLM model** pulled (e.g., `ollama pull llama3:8b`)
+|---|------|--------|-----------|
+| 3C.1 | `GET /api/documents` — list all uploaded documents | ✅ | `backend/routers/documents.py` |
+| 3C.2 | `DELETE /api/documents/{id}` — delete from all 3 DBs | ✅ | `backend/routers/documents.py` |
+| 3C.3 | MongoDB: `list_documents()` aggregation query | ✅ | `backend/db/mongo_client.py` |
+| 3C.4 | MongoDB: `delete_document_chunks()` by document_id | ✅ | `backend/db/mongo_client.py` |
+| 3C.5 | Qdrant: `delete_by_document_id()` via FilterSelector | ✅ | `backend/db/qdrant_client.py` |
+| 3C.6 | Elasticsearch: `delete_by_document_id()` with keyword fallback | ✅ | `backend/db/elastic_client.py` |
+| 3C.7 | Frontend: Document Library panel with checkboxes | ✅ | `frontend/index.html` |
+| 3C.8 | Frontend: Select All / None toggle | ✅ | `frontend/index.html` |
+| 3C.9 | Frontend: Delete button per document (with confirmation) | ✅ | `frontend/index.html` |
+| 3C.10 | Frontend: Filter bar shows which docs are being searched | ✅ | `frontend/index.html` |
+| 3C.11 | Query: Pass `document_ids` filter to retrieval pipeline | ✅ | `backend/routers/query.py` |
 
 ---
 
-## ✅ Bug Fixes & Infra Improvements (COMPLETE)
+## ✅ Phase 4 — Cloud Migration (COMPLETE)
 
-Code review and fixes to make the project actually runnable locally.
-
-| # | Task | Status | Details |
-|---|------|--------|---------|
-| AG-1 | Created 5 missing `__init__.py` files | ✅ Fixed | backend/, routers/, services/, db/, models/ |
-| AG-2 | Fixed broken imports (absolute → relative) | ✅ Fixed | `main.py`, `upload.py` |
-| AG-3 | Fixed deprecated `langchain.text_splitter` import | ✅ Fixed | `chunker.py` → `langchain_text_splitters` |
-| AG-4 | Added missing pip dependencies | ✅ Fixed | `pdf2image`, `Pillow`, `numpy`, `langchain-text-splitters` in `requirements.txt` |
-| AG-5 | Fixed Dockerfile CMD path | ✅ Fixed | `main:app` → `backend.main:app` |
-| AG-6 | Fixed Elasticsearch deprecated `body=` param | ✅ Fixed | `elastic_client.py` — uses keyword args for ES 8.x |
-| AG-7 | Added CORS middleware | ✅ Done | `main.py` — allows frontend to call API |
-| AG-8 | Added static file serving | ✅ Done | `main.py` — serves `/frontend/` directory |
-| AG-9 | Created basic frontend UI | ✅ Done | `frontend/index.html` — upload, query, results |
-| AG-10 | Created `.env` for local dev | ✅ Done | Localhost defaults from `.env.example` |
-| AG-11 | Installed all packages in venv | ✅ Done | All imports verified working |
-| AG-12 | Fixed `query.py` logging | ✅ Fixed | Replaced `print()` with proper `logger.error()` |
-| AG-13 | Fixed `elastic_client.py` mappings logic | ✅ Fixed | Removed confusing no-op expression |
-| AG-14 | Enhanced health check endpoint | ✅ Done | Reports individual DB connection statuses |
-| AG-15 | Root path redirects to frontend | ✅ Done | `GET /` → `302 /frontend/index.html` |
-| AG-16 | Added Liberal mode to frontend | ✅ Done | Mode button + response renderer + citations |
-| AG-17 | Added Ollama to docker-compose | ✅ Done | `ollama/ollama:latest` on port 11434 |
-| AG-18 | Updated `mode` field in schema | ✅ Fixed | Description now includes 'liberal' option |
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 4.1 | MongoDB Atlas (cloud) — SRV connection string support | ✅ | `MONGO_URI` in `.env` |
+| 4.2 | Qdrant Cloud — URL + API key auth | ✅ | `QDRANT_URL`, `QDRANT_API_KEY` |
+| 4.3 | Elastic Cloud — HTTPS + API key auth | ✅ | `ES_URL`, `ES_API_KEY` |
+| 4.4 | Gemini API key config (`google-genai` SDK) | ✅ | `GEMINI_API_KEY`, `GEMINI_MODEL` |
+| 4.5 | Health check endpoint reports all cloud service statuses | ✅ | `backend/main.py` |
+| 4.6 | `.env.example` template (safe to commit, no real keys) | ✅ | `.env.example` |
 
 ---
 
-## 🔲 Phase 3A — Strict Analysis Mode (NOT STARTED — DO THIS NEXT)
+## 🔜 Next: Phase 5 — React Frontend
 
-Enterprise-grade, hallucination-free, citation-mandatory, publicly verified answers.
-
-| # | Task | Status | What to Build |
-|---|------|--------|---------------|
-| 3A.1 | Citation Grounding Validation | 🔲 TODO | Check if retrieved chunks contain enough evidence; reject if insufficient (reranker score < 0.65) |
-| 3A.2 | Trusted Public Source Verification | 🔲 TODO | Query PubMed, arXiv, IEEE, gov portals based on document domain |
-| 3A.3 | Consistency Check | 🔲 TODO | Compare document claims vs public source evidence (Verified / Contradiction / Insufficient) |
-| 3A.4 | Confidence Scoring | 🔲 TODO | Calculate 0.0–1.0 score based on reranker score, supporting chunks, verification result |
-| 3A.5 | Grounded LLM Generation | 🔲 TODO | Strict system prompt — answer ONLY from evidence, no speculation |
-| 3A.6 | Strict Mode Output Structure | 🔲 TODO | Answer + Citation + Public Source + Consistency Status + Confidence Score |
-
-### Prerequisites for Phase 3A
-- Phase 3B must be working first (validates the LLM integration) ✅
-- API keys or access to PubMed, arXiv, IEEE Xplore, Semantic Scholar
-- New files to create: `backend/services/strict_mode.py`, `backend/services/verifier.py`
+Planned features for a proper React frontend:
+- [ ] Multi-tab support (separate upload / search / manage views)
+- [ ] File drag-and-drop with progress tracking
+- [ ] Search history / saved queries
+- [ ] Document preview panel
+- [ ] User authentication (JWT)
 
 ---
 
-## 🔲 Phase 4 — Full Frontend UI (NOT STARTED — basic UI exists)
+## 🔜 Future: Phase 6 — Production Deployment
 
-| # | Task | Status | What to Build |
-|---|------|--------|---------------|
-| 4.1 | Upload Zone Component | ✅ Basic done | Full React component with progress bar, domain tagging |
-| 4.2 | Mode Toggle (Strict / Liberal) | ✅ Basic done | Prominent toggle with mode descriptions |
-| 4.3 | Query Input with Filters | ✅ Basic done | Add domain filter, document filter dropdowns |
-| 4.4 | Strict Mode Answer Viewer | 🔲 TODO | Citation cards, public source links, consistency badges, confidence bar |
-| 4.5 | Liberal Mode Answer Viewer | ✅ Done | Two-section layout: "From your document" + "Additional context" |
-| 4.6 | Document Manager | 🔲 TODO | List uploaded docs, delete, re-index |
-| 4.7 | API Integration | ✅ Basic done | Connect all new endpoints |
-
-### Note
-> The current `frontend/index.html` is a functional UI with support for all 4 query modes (Hybrid, Vector, BM25, Liberal). Phase 4 in the plan calls for a full **React + Tailwind CSS** application. This can be done after 3A is working.
-
----
-
-## 🔲 Phase 5 — Docker Deployment (PARTIALLY DONE)
-
-| # | Task | Status | What to Build |
-|---|------|--------|---------------|
-| 5.1 | Dockerfile for FastAPI backend | ✅ Done | `Dockerfile` |
-| 5.2 | Dockerfile for React frontend | 🔲 TODO | Depends on Phase 4 |
-| 5.3 | docker-compose.yml with all services | ✅ Done | Has backend + Qdrant + MongoDB + ES + Ollama |
-| 5.4 | .env file configured | ✅ Done | `.env` |
-| 5.5 | Volume mounts for data persistence | ✅ Done | Qdrant, MongoDB, ES, Ollama volumes defined |
-| 5.6 | Ollama model pre-pull on startup | 🔲 TODO | Auto-pull script or init container |
-| 5.7 | Health checks for all services | ⬜ Partial | API health check done, Docker health check commands TODO |
-
----
-
-## Recommended Next Steps (In Order)
-
-```
-1. ✅ Install Ollama locally → ollama pull llama3:8b
-2. ✅ Build Phase 3B (Liberal Mode) → services/liberal_mode.py
-3. Test: upload a doc → query with liberal mode → get LLM-generated answer
-4. Build Phase 3A (Strict Mode) → services/strict_mode.py, services/verifier.py
-5. Build Phase 4 (Full React Frontend)
-6. Finalize Phase 5 (Docker everything)
-7. Testing & Tuning (chunk size, reranker threshold, confidence cutoff)
-```
-
----
-
-*This document is a living tracker. Update it as each task is completed.*
+- [ ] Deploy backend to Render / Railway / Fly.io
+- [ ] Static frontend hosting (Vercel / Netlify)
+- [ ] CI/CD pipeline (GitHub Actions)
+- [ ] Rate limiting & API key management
+- [ ] Docker Compose for local one-command startup

@@ -1,7 +1,6 @@
 from fastapi import APIRouter, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 import uuid
-import os
 import shutil
 from pathlib import Path
 import logging
@@ -10,9 +9,10 @@ from ..services.processor import process_uploaded_file
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Directory to store uploaded files
-UPLOAD_DIR = Path("uploads")
+# Use an absolute path so it works regardless of the working directory uvicorn is started from
+UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
+
 
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -22,20 +22,18 @@ async def upload_file(file: UploadFile = File(...)):
     """
     # Validate file type
     allowed_extensions = {".pdf", ".docx", ".txt"}
-    file_ext = os.path.splitext(file.filename)[1].lower()
+    file_ext = "." + file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
     if file_ext not in allowed_extensions:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type. Allowed types: {', '.join(allowed_extensions)}"
+            detail=f"Unsupported file type '{file_ext}'. Allowed: {', '.join(sorted(allowed_extensions))}",
         )
 
     # Generate unique document ID
     document_id = str(uuid.uuid4())
 
-    # Define file path
-    file_path = UPLOAD_DIR / f"{document_id}_{file.filename}"
-
     # Save file to disk
+    file_path = UPLOAD_DIR / f"{document_id}_{file.filename}"
     try:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
@@ -44,11 +42,11 @@ async def upload_file(file: UploadFile = File(...)):
     finally:
         file.file.close()
 
+    logger.info(f"Saved uploaded file to {file_path}")
+
     # Process the document through the ingestion pipeline
     try:
-        # Determine domain from filename or content? For now, default to "unknown"
-        # In a real system, we might use file content or user input to determine domain.
-        domain = "unknown"  # Could be inferred from file path or metadata
+        domain = "unknown"
         result = process_uploaded_file(
             file_path=str(file_path),
             document_id=document_id,
@@ -56,9 +54,7 @@ async def upload_file(file: UploadFile = File(...)):
             domain=domain,
         )
     except Exception as e:
-        # If processing fails, we still have the file uploaded but mark status as failed
-        logger.error(f"Processing failed for document {document_id}: {e}")
-        # We could optionally delete the file, but we'll keep it for inspection.
+        logger.error(f"Processing failed for document {document_id}: {e}", exc_info=True)
         return JSONResponse(
             status_code=202,  # Accepted but processing failed
             content={
@@ -66,7 +62,7 @@ async def upload_file(file: UploadFile = File(...)):
                 "filename": file.filename,
                 "status": "processing_failed",
                 "message": f"File uploaded but processing failed: {str(e)}",
-            }
+            },
         )
 
     return JSONResponse(
@@ -77,5 +73,5 @@ async def upload_file(file: UploadFile = File(...)):
             "status": "processed",
             "num_chunks": result.get("num_chunks"),
             "message": "File uploaded and successfully processed through ingestion pipeline.",
-        }
+        },
     )
