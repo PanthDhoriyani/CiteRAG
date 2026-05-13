@@ -114,18 +114,32 @@ class QdrantDB:
         query_vector: List[float],
         limit: int = 10,
         score_threshold: float = 0.0,
+        document_ids: Optional[List[str]] = None,
     ):
         """
         Search for similar vectors.
         Returns list of {id, score, payload}.
+        Optionally restricts results to specific document_ids (pre-filter at DB level).
         """
+        from qdrant_client.http.models import Filter, FieldCondition, MatchAny
         self._ensure_connected()
+
+        query_filter = None
+        if document_ids:
+            query_filter = Filter(
+                must=[FieldCondition(
+                    key="document_id",
+                    match=MatchAny(any=document_ids),
+                )]
+            )
+
         try:
             hits = self.client.search(
                 collection_name=collection_name,
                 query_vector=query_vector,
                 limit=limit,
                 score_threshold=score_threshold,
+                query_filter=query_filter,
             )
         except UnexpectedResponse as e:
             if "doesn't exist" in str(e) or "Not found" in str(e):

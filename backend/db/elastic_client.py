@@ -128,20 +128,46 @@ class ElasticSearchDB:
         else:
             logger.warning("No chunks to index.")
 
-    def search_text(self, index_name: str, query_text: str, limit: int = 10):
+    def search_text(
+        self,
+        index_name: str,
+        query_text: str,
+        limit: int = 10,
+        document_ids: Optional[List[str]] = None,
+    ):
         """
         Perform BM25 keyword search.
         Returns list of matching documents with scores.
+        Optionally restricts to specific document_ids (pre-filter at DB level).
         """
         self._ensure_connected()
+
+        # Build query — add document filter if specified
+        if document_ids:
+            query_body = {
+                "bool": {
+                    "must": {"match": {"text": query_text}},
+                    "filter": {
+                        "bool": {
+                            "should": [
+                                {"terms": {"metadata.document_id.keyword": document_ids}},
+                                {"terms": {"metadata.document_id": document_ids}},
+                            ],
+                            "minimum_should_match": 1,
+                        }
+                    },
+                }
+            }
+        else:
+            query_body = {"match": {"text": query_text}}
+
         try:
             response = self.es.search(
                 index=index_name,
-                query={"match": {"text": query_text}},
+                query=query_body,
                 size=limit,
             )
         except NotFoundError:
-            # Index doesn't exist yet — no documents have been uploaded
             logger.warning(f"Index '{index_name}' not found. No documents indexed yet.")
             return []
 

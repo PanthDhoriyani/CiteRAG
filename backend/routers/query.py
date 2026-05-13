@@ -82,9 +82,13 @@ async def query_documents(request: QueryRequest) -> Dict[str, Any]:
         is_meta = effective_mode == "liberal" and _is_meta_query(request.question)
         fetch_limit = (request.limit * 6) if is_meta else (request.limit * 2)
 
+        # document_ids pre-filter: pass directly to DB-level search
+        # This ensures results always come from selected documents, even if they
+        # score lower globally than chunks from other documents.
         initial_results = retriever.hybrid_search(
             query_text=request.question,
             limit=fetch_limit,
+            document_ids=request.document_ids or None,
         )
 
         filtered = _apply_filters(initial_results, request)
@@ -120,12 +124,7 @@ async def query_documents(request: QueryRequest) -> Dict[str, Any]:
 
 
 def _apply_filters(results: List[Dict], request: QueryRequest) -> List[Dict]:
-    """Apply optional document_id and domain filters to a result list."""
-    if request.document_ids:
-        results = [
-            r for r in results
-            if r.get("metadata", {}).get("document_id") in request.document_ids
-        ]
+    """Apply optional domain filter. document_ids are now handled at DB level."""
     if request.domain:
         results = [
             r for r in results

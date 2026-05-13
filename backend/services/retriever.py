@@ -39,13 +39,17 @@ class Retriever:
         query_text: str,
         limit: int = 10,
         score_threshold: float = 0.0,
+        document_ids: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
-        """Perform BM25 keyword search using Elasticsearch."""
+        """Perform BM25 keyword search using Elasticsearch.
+        document_ids: if provided, restricts search to these documents at DB level.
+        """
         try:
             results = self.es.search_text(
                 index_name=self.index_name,
                 query_text=query_text,
                 limit=limit,
+                document_ids=document_ids,
             )
             if score_threshold > 0:
                 results = [r for r in results if r["score"] >= score_threshold]
@@ -62,8 +66,11 @@ class Retriever:
         query_text: str,
         limit: int = 10,
         score_threshold: float = 0.0,
+        document_ids: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
-        """Perform vector similarity search using Qdrant."""
+        """Perform vector similarity search using Qdrant.
+        document_ids: if provided, restricts search to these documents at DB level.
+        """
         try:
             query_embedding = embed_query(query_text)
 
@@ -72,6 +79,7 @@ class Retriever:
                 query_vector=query_embedding.tolist(),
                 limit=limit,
                 score_threshold=score_threshold,
+                document_ids=document_ids,
             )
 
             # Normalise to the same shape as BM25 results
@@ -98,13 +106,15 @@ class Retriever:
         bm25_weight: float = 0.5,
         vector_weight: float = 0.5,
         score_threshold: float = 0.0,
+        document_ids: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Perform hybrid search combining BM25 and vector search with weighted scoring.
         Falls back gracefully if one source is unavailable.
+        document_ids: if provided, restricts BOTH searches to these documents at DB level.
         """
-        bm25_results = self.bm25_search(query_text, limit=limit * 2)
-        vector_results = self.vector_search(query_text, limit=limit * 2)
+        bm25_results = self.bm25_search(query_text, limit=limit * 2, document_ids=document_ids)
+        vector_results = self.vector_search(query_text, limit=limit * 2, document_ids=document_ids)
 
         # Build score lookup dicts
         bm25_scores = {r["id"]: r["score"] for r in bm25_results}
